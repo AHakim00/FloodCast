@@ -416,7 +416,20 @@ async function getDemoData(
     ]
   }
 
-  return {
+  if (path.endsWith('/contours/metadata')) {
+    const timestamps = [
+      '1000',
+      '1100',
+      '1200',
+      '1300',
+      '1400',
+      '1500',
+      '1600',
+      '1700',
+      '1800',
+    ]
+
+    return {
       frames: timestamps.map((timestep) => ({
         timestep,
         label: `${timestep.slice(0, 2)}:${timestep.slice(2)}`,
@@ -437,9 +450,14 @@ async function getDemoData(
   if (path.includes('/contours/')) {
     const timestamp = path.split('/').pop() || ''
 
-    return await fetchDemoContour(timestamp)
-  }
+    const filename =
+      timestamp.toLowerCase() === 'maxima'
+        ? 'FloodContours_260826_Maxima.geojson'
+        : `FloodContours_260826_${timestamp}.geojson`
 
+    return await fetchDemoContour(filename)
+  }
+  
   // Load the CSV only for endpoints that need water-level readings.
   const readings = await getDemoReadings()
 
