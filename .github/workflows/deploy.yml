@@ -39,6 +39,8 @@ jobs:
 
       - name: Build Frontend
         working-directory: ./frontend
+        env:
+          VITE_DEMO_MODE: 'true'
         run: npm run build
 
       - name: Setup GitHub Pages
