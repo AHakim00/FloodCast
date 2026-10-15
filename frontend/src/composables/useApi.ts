@@ -98,7 +98,7 @@ export interface ContourGeoJSON {
   features: Array<{
     type: string
     geometry: any
-    properties: GeoJSONFeatureProperties
+    properties: GeoJSONFeatureProperties | null
   }>
 }
 
@@ -710,7 +710,6 @@ export async function fetchContourGeoJSON(
   }
 
   return apiFetch<ContourGeoJSON>(
-    `${API_BASE}/contours/${encodeURIComponent(timestamp)}`,
   )
 }
 
