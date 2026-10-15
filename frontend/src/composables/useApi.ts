@@ -125,8 +125,8 @@ const FALLBACK_NODES: NodeData[] = [
     status: 'alert',
   },
   {
-    id: 'Drain_102',
-    name: 'Drain 102 - Sungai Sarawak',
+    id: 'Drain_53',
+    name: 'Drain 53 - Sungai Sarawak',
     latitude: 1.5601,
     longitude: 110.3422,
     node_type: '1D_Channel',
