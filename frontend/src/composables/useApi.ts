@@ -319,7 +319,8 @@ async function getDemoReadings(): Promise<DemoReadings> {
 
 type DemoSensorId = 'Drain_46' | 'Drain_53'
 
-const DEMO_SENSOR_IDS: DemoSensorId[] = ['Drain_46', 'Drain_53']
+const DEMO_SENSOR_IDS = ['Drain_46', 'Drain_53']
+// const DEMO_SENSOR_IDS: DemoSensorId[] = ['Drain_46', 'Drain_53']
 
 function isDemoSensorId(value: string): value is DemoSensorId {
   return DEMO_SENSOR_IDS.includes(value as DemoSensorId)
