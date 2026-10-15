@@ -709,13 +709,6 @@ export async function fetchContourGeoJSON(
     return fetchDemoContour(filename)
   }
 
-    if (!filename) {
-      throw new Error(`Unknown demo contour timestamp: ${timestamp}`)
-    }
-
-    return await fetchDemoContour(filename) as ContourGeoJSON
-  }
-
   return apiFetch<ContourGeoJSON>(
     `${API_BASE}/contours/${encodeURIComponent(timestamp)}`,
   )
