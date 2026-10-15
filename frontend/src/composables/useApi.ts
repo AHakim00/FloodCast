@@ -706,10 +706,11 @@ export async function fetchContourGeoJSON(
         ? 'FloodContours_260826_Maxima.geojson'
         : `FloodContours_260826_${timestamp}.geojson`
 
-    return fetchDemoContour(filename)
+    return await fetchDemoContour(filename)
   }
 
   return apiFetch<ContourGeoJSON>(
+    `${API_BASE}/contours/${encodeURIComponent(timestamp)}`,
   )
 }
 
