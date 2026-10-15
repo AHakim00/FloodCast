@@ -145,7 +145,7 @@ const FALLBACK_NODES: NodeData[] = [
     warning_threshold: 2.0,
     alert_threshold: 3.0,
     current_water_level: 1.20,
-    status: 'normal'
+    status: 'normal',
   },
 ]
 
