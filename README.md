@@ -9,9 +9,20 @@ An automated live flood forecasting web application and API platform that monito
 ## 🏗️ Architecture
 
 ```
-ICM Water/Live → CSV exports → File Watcher → SQLite DB → FastAPI → Vue.js Dashboard
-                (data/exports/)   (watchdog)    (async)     (REST)    (Leaflet + ECharts)
+InfoWorks ICM Live → CSV exports → data/exports → File Watcher / Ingestion
+                                                   ↓
+                              SQL Server (production) or SQLite (local)
+                                                   ↓
+                                FastAPI REST API (/api/v1)
+                                                   ↓
+                                  Vue.js Dashboard
 ```
+
+ICM Live hands forecast and alert exports to the watched export directory. The
+backend parses and persists them, and the dashboard reads the resulting data
+through the REST API; it does not connect directly to the database. SQLite is
+the zero-configuration default, while SQL Server can be selected with
+`DATABASE_URL`.
 
 ## 🚀 Quick Start
 
@@ -54,6 +65,30 @@ Drop your ICM CSV files into the `data/exports/` directory:
 - `*Alert definition list*.csv` — Alert/warning definitions
 
 The file watcher will automatically detect and ingest new files.
+
+For a deployed ICM Live workflow, configure its scheduled/export process to
+write `Node_Flood Forecast*.csv` and `*Alert definition list*.csv` into the
+backend's `DATA_DIR` (defaults to `data/exports/`). The watcher ingests new or
+changed files; the Vue dashboard receives updates through the API polling
+endpoints.
+
+### Use SQL Server
+
+1. Install Microsoft ODBC Driver 18 for SQL Server on the backend host and
+   install the Python dependencies with `pip install -r requirements.txt`.
+2. Copy `.env.example` to `.env` in the repository root and set `DATABASE_URL`
+   to an async SQLAlchemy URL, for example:
+
+   ```env
+   DATABASE_URL=mssql+aioodbc://USER:PASSWORD@SERVER:1433/DATABASE?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes
+   ```
+
+3. Ensure the SQL Server database exists and the configured account can create
+   and modify the application's tables. Start the backend as usual; startup
+   initializes the schema and `/health` reports database connectivity.
+
+URL-encode reserved characters in usernames or passwords. Keep `.env` out of
+source control and use a secrets manager for deployed credentials.
 
 ---
 
@@ -141,14 +176,12 @@ Edit `backend/app/config.py` to customize:
 
 ---
 
-## 🔄 Migration to PostgreSQL
+## Database Options
 
-The app uses SQLite by default for zero-config setup. To migrate:
-
-1. Install PostgreSQL + TimescaleDB + PostGIS
-2. Update `DATABASE_URL` in config to `postgresql+asyncpg://...`
-3. Replace `aiosqlite` with `asyncpg` in requirements.txt
-4. See `backend/schema.sql` for PostgreSQL-specific migration notes
+SQLite is the default for local development. Set `DATABASE_URL` to an async
+SQLAlchemy URL to use another supported database. SQL Server uses the
+`mssql+aioodbc` dialect and requires its Microsoft ODBC driver; PostgreSQL
+requires `postgresql+asyncpg` and the `asyncpg` package.
 
 ---
 

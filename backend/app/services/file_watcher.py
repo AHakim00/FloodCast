@@ -72,12 +72,12 @@ class ExportDirectoryEventHandler(FileSystemEventHandler):
     def on_created(self, event):
         if event.is_directory:
             return
-        self._dispatch(event.src_path)
+        self._dispatch(os.fsdecode(event.src_path))
 
     def on_modified(self, event):
         if event.is_directory:
             return
-        self._dispatch(event.src_path)
+        self._dispatch(os.fsdecode(event.src_path))
 
     def _dispatch(self, filepath: str):
         lower = filepath.lower()

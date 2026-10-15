@@ -80,6 +80,8 @@ const geoJsonViewerUrl = apiBaseUrl
       <header class="topbar">
         <div>
           <h1 class="topbar-title">Flood Live Forecast</h1>
+
+          <!-- Change from harcoded location to dynamic -->
           <p class="topbar-sub">Kuching, Sarawak &mdash; Real-time Monitoring</p>
         </div>
       </header>
@@ -198,6 +200,7 @@ const geoJsonViewerUrl = apiBaseUrl
   white-space: nowrap;
   transition: all 0.12s ease;
 }
+
 .nav-link svg { width: 18px; height: 18px; flex-shrink: 0; }
 .nav-link:hover { color: var(--color-text); background: var(--color-bg-raised); }
 .nav-link.active {
@@ -253,9 +256,6 @@ const geoJsonViewerUrl = apiBaseUrl
   color: var(--color-text-dim);
   margin-top: 1px;
 }
-
-
-
 
 .content {
   flex: 1;

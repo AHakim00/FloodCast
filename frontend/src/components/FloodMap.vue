@@ -5,10 +5,30 @@ import 'leaflet/dist/leaflet.css'
 import {
   fetchContourTimesteps,
   fetchContourGeoJSON,
+  fetchNodeForecast,
   checkHasMaxima,
+  type WaterLevelReading,
   type NodeData,
   type ContourGeoJSON,
 } from '@/composables/useApi'
+import {
+  computeNodeStatus,
+  readingForFrame,
+  peakReading,
+  normaliseFrameDate,
+  formatShownAt,
+  type ShownNode,
+} from '@/composables/frameReadings'
+
+async function fetchContourMetadata(): Promise<{ frames: Array<{ date?: string; timestep?: string }> }> {
+  const timesteps = await fetchContourTimesteps()
+  return {
+    frames: timesteps.map((timestep) => ({
+      timestep,
+      date: normaliseFrameDate(timestep) ?? undefined,
+    })),
+  }
+}
 
 const props = defineProps<{ nodes: NodeData[] }>()
 const emit = defineEmits<{ (e: 'select-node', nodeId: string): void }>()
@@ -17,9 +37,18 @@ const mapEl = ref<HTMLElement | null>(null)
 let map: L.Map | null = null
 let markers: L.LayerGroup | null = null
 let inundationLayer: L.GeoJSON | null = null
+const selectedMarkerId = ref<string | null>(null)
+const hasInundationLayer = ref(false)
 let hasFittedContours = false
 
-const COLORS: Record<string, string> = { normal: '#34c471', warning: '#e6a020', alert: '#e04848' }
+// Status colours — keep in sync with --color-* in assets/main.css
+const COLORS: Record<string, string> = { normal: '#28A745', alert: '#FFC107', warning: '#FD7E14', danger: '#DC3545' }
+
+// '#RRGGBB' -> 'rgba(r,g,b,a)' so popup tints always match the status colour
+function hexToRgba(hex: string, alpha: number): string {
+  const n = parseInt(hex.replace('#', ''), 16)
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`
+}
 
 // ─── Simulation Time-Lapse & Layer State ──────────────────────────────────────
 const timesteps = ref<string[]>([])
@@ -46,6 +75,52 @@ const currentFormattedTime = computed(() => {
   return ts
 })
 
+// ─── Node values that follow the timeline ────────────────────────────────────
+// Forecast readings per node, and the calendar date of each contour frame.
+const forecasts = ref<Record<string, WaterLevelReading[]>>({})
+const frameDates = ref<Record<string, string>>({})
+
+async function refreshForecasts() {
+  const results = await Promise.allSettled(props.nodes.map((n) => fetchNodeForecast(n.id)))
+  const next: Record<string, WaterLevelReading[]> = {}
+  results.forEach((res, i) => {
+    const node = props.nodes[i]
+    if (node && res.status === 'fulfilled' && Array.isArray(res.value?.readings)) {
+      next[node.id] = res.value.readings
+    }
+  })
+  forecasts.value = next
+}
+
+// Each marker shows the reading at the selected frame (or the peak in Maxima mode).
+// With no timeline loaded it keeps the node's latest value.
+const shownNodes = computed<ShownNode[]>(() =>
+  props.nodes.map((n) => {
+    const readings = forecasts.value[n.id] ?? []
+    let reading: WaterLevelReading | null = null
+    let levelLabel = 'Level'
+
+    if (isMaximaActive.value) {
+      reading = peakReading(readings)
+      levelLabel = 'Peak level'
+    } else if (currentTimestep.value) {
+      reading = readingForFrame(readings, currentTimestep.value, frameDates.value[currentTimestep.value] ?? null)
+    }
+
+    if (!reading) return { ...n, shown_at: null, level_label: 'Level' }
+    return {
+      ...n,
+      current_water_level: reading.water_level,
+      status: computeNodeStatus(reading.water_level, n),
+      shown_at: reading.timestamp,
+      level_label: levelLabel,
+    }
+  })
+)
+const selectedNode = computed(() =>
+  shownNodes.value.find((node) => node.id === selectedMarkerId.value) ?? null,
+)
+
 // ─── Node Markers ────────────────────────────────────────────────────────────
 
 function icon(status: string): L.DivIcon {
@@ -56,25 +131,27 @@ function icon(status: string): L.DivIcon {
     html: `<span style="display:block;width:14px;height:14px;border-radius:50%;background:${c};border:2px solid ${c}40;${ring ? `box-shadow:0 0 0 4px ${c}22;animation:blink 2s ease-in-out infinite` : ''}"></span>`,
     iconSize: [14, 14],
     iconAnchor: [7, 7],
-    popupAnchor: [0, -12],
+    tooltipAnchor: [0, -12],
   })
 }
 
-function nodePopup(n: NodeData): string {
+function nodeTooltip(n: ShownNode): string {
   const level = n.current_water_level !== null ? `${n.current_water_level.toFixed(3)} m` : '—'
   const statusTag = `<span style="display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;
-    background:${n.status === 'alert' ? 'rgba(224,72,72,.12)' : n.status === 'warning' ? 'rgba(230,160,32,.12)' : 'rgba(52,196,113,.12)'};
+    background:${hexToRgba(COLORS[n.status] ?? '#28A745', 0.14)};
     color:${COLORS[n.status]}">
     <span style="width:6px;height:6px;border-radius:50%;background:${COLORS[n.status]}"></span>${n.status}
   </span>`
 
   return `<div style="padding:14px 16px;font-family:Inter,sans-serif;min-width:210px;">
-    <div style="font-weight:600;font-size:13px;color:#e2e4ea;margin-bottom:6px">${n.name}</div>
+    <div style="font-weight:600;font-size:13px;color:#1F2937;margin-bottom:6px">${n.name}</div>
     <div style="margin-bottom:10px">${statusTag}</div>
     <table style="font-size:12px;color:#8b8fa3;line-height:1.8;border-collapse:collapse">
-      <tr><td style="padding-right:12px;color:#5c6178">Level</td><td style="font-family:'JetBrains Mono',monospace;color:#e2e4ea;font-weight:500">${level}</td></tr>
-      <tr><td style="padding-right:12px;color:#5c6178">Warn</td><td style="font-family:'JetBrains Mono',monospace">${n.warning_threshold} m</td></tr>
+      <tr><td style="padding-right:12px;color:#5c6178">${n.level_label}</td><td style="font-family:'JetBrains Mono',monospace;color:#5c6178;font-weight:500">${level}</td></tr>
+      ${n.shown_at ? `<tr><td style="padding-right:12px;color:#5c6178">Time</td><td style="font-family:'JetBrains Mono',monospace">${formatShownAt(n.shown_at)}</td></tr>` : ''}
       <tr><td style="padding-right:12px;color:#5c6178">Alert</td><td style="font-family:'JetBrains Mono',monospace">${n.alert_threshold} m</td></tr>
+      <tr><td style="padding-right:12px;color:#5c6178">Warning</td><td style="font-family:'JetBrains Mono',monospace">${n.warning_threshold} m</td></tr>
+      <tr><td style="padding-right:12px;color:#5c6178">Danger</td><td style="font-family:'JetBrains Mono',monospace">${n.danger_threshold} m</td></tr>
       <tr><td style="padding-right:12px;color:#5c6178">Coords</td><td style="font-family:'JetBrains Mono',monospace;font-size:11px">${n.latitude.toFixed(4)}, ${n.longitude.toFixed(4)}</td></tr>
     </table>
     <button onclick="window.__pickNode('${n.id}')" style="margin-top:10px;width:100%;padding:7px;background:#4a7cff;border:none;border-radius:6px;color:white;font-weight:600;font-size:12px;cursor:pointer;font-family:Inter,sans-serif">View Hydrograph</button>
@@ -178,12 +255,14 @@ async function loadContourLayerData(layerKey: string) {
     if (inundationLayer && map.hasLayer(inundationLayer)) {
       map.removeLayer(inundationLayer)
       inundationLayer = null
+      hasInundationLayer.value = false
     }
 
     inundationLayer = L.geoJSON(geojsonData as any, {
       style: contourStyle,
       onEachFeature: onEachContourFeature,
     })
+    hasInundationLayer.value = true
 
     if (showInundation.value) {
       inundationLayer.addTo(map)
@@ -209,6 +288,7 @@ async function loadContourFrame(index: number) {
   await loadContourLayerData(ts)
 }
 
+// ─── Maxima Mode Toggle ─────────────────────────────────────────────────────
 async function toggleMaximaMode() {
   if (isMaximaActive.value) {
     // Exit Maxima mode, restore current hourly frame
@@ -354,6 +434,9 @@ function initMap() {
   const markerPane = map.createPane('telemetryMarkers')
   markerPane.style.zIndex = '650'
 
+  const tooltipPane = map.createPane('nodeTooltipPane')
+  tooltipPane.style.zIndex = '1000'
+
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19,
@@ -363,17 +446,54 @@ function initMap() {
   ;(window as any).__pickNode = (id: string) => emit('select-node', id)
 }
 
+// One marker per node, updated in place so an open popup stays open while the timeline moves
+const markerById = new Map<string, L.Marker>()
+
+function selectMarker(nodeId: string, marker: L.Marker) {
+  markerById.forEach((stationMarker) => stationMarker.closeTooltip())
+  selectedMarkerId.value = nodeId
+  map?.setView(marker.getLatLng(), map.getZoom(), { animate: true })
+}
+
+function clearSelectedMarker() {
+  selectedMarkerId.value = null
+}
+
 function syncNodes() {
   if (!markers || !map) return
-  markers.clearLayers()
-  props.nodes.forEach((n) => {
-    const m = L.marker([n.latitude, n.longitude], {
-      icon: icon(n.status),
-      pane: 'telemetryMarkers',
-    })
-      .bindPopup(nodePopup(n), { maxWidth: 280, className: '' })
-    m.on('click', () => emit('select-node', n.id))
-    markers!.addLayer(m)
+  const seen = new Set<string>()
+
+  shownNodes.value.forEach((n) => {
+    seen.add(n.id)
+    const existing = markerById.get(n.id)
+    if (existing) {
+      existing.setLatLng([n.latitude, n.longitude])
+      existing.setIcon(icon(n.status))
+      existing.setTooltipContent(nodeTooltip(n))
+    } else {
+      const m = L.marker([n.latitude, n.longitude], {
+        icon: icon(n.status),
+        pane: 'telemetryMarkers',
+      }).bindTooltip(nodeTooltip(n), {
+        className: 'node-details-tooltip',
+        direction: 'top',
+        interactive: true,
+        offset: [0, -8],
+        opacity: 1,
+        pane: 'nodeTooltipPane',
+      })
+      m.on('click', () => selectMarker(n.id, m))
+      markers!.addLayer(m)
+      markerById.set(n.id, m)
+    }
+  })
+
+  // Remove markers for nodes that no longer exist
+  markerById.forEach((m, id) => {
+    if (!seen.has(id)) {
+      markers!.removeLayer(m)
+      markerById.delete(id)
+    }
   })
 
   // Only fit to nodes if contours haven't centered the view
@@ -387,10 +507,21 @@ function syncNodes() {
 
 async function initContours() {
   try {
-    const [list, maximaRes] = await Promise.allSettled([
+    const [list, maximaRes, metaRes] = await Promise.allSettled([
       fetchContourTimesteps(),
       checkHasMaxima(),
+      fetchContourMetadata(),
     ])
+
+    // Date of each contour frame (from the file name), used to match forecast readings
+    if (metaRes.status === 'fulfilled' && Array.isArray(metaRes.value?.frames)) {
+      const dates: Record<string, string> = {}
+      metaRes.value.frames.forEach((f: { date?: string; timestep?: string }) => {
+        const d = normaliseFrameDate(f.date)
+        if (f.timestep && d) dates[f.timestep] = d
+      })
+      frameDates.value = dates
+    }
 
     if (maximaRes.status === 'fulfilled' && maximaRes.value?.available) {
       hasMaxima.value = true
@@ -411,7 +542,10 @@ async function initContours() {
 
 onMounted(() => {
   initMap()
-  if (props.nodes.length) syncNodes()
+  if (props.nodes.length) {
+    syncNodes()
+    refreshForecasts()
+  }
   initContours()
 })
 
@@ -421,7 +555,10 @@ onUnmounted(() => {
   delete (window as any).__pickNode
 })
 
-watch(() => props.nodes, syncNodes, { deep: true })
+// Reload forecasts whenever the nodes refresh (every 30s)
+watch(() => props.nodes, refreshForecasts, { deep: true })
+// Redraw markers when nodes, forecasts or the selected frame change
+watch(shownNodes, syncNodes, { deep: true })
 </script>
 
 <template>
@@ -464,7 +601,7 @@ watch(() => props.nodes, syncNodes, { deep: true })
         </button>
 
         <button
-          v-if="showInundation && inundationLayer"
+          v-if="showInundation && hasInundationLayer"
           type="button"
           class="layer-toggle-btn"
           @click="fitToFloodExtent"
@@ -486,8 +623,9 @@ watch(() => props.nodes, syncNodes, { deep: true })
         <div class="legend-group">
           <span class="legend-label">Stations:</span>
           <span class="legend-i"><span class="dot dot--ok"></span>Normal</span>
+          <span class="legend-i"><span class="dot dot--alert"></span>Alert</span>
           <span class="legend-i"><span class="dot dot--warn"></span>Warning</span>
-          <span class="legend-i"><span class="dot dot--danger"></span>Alert</span>
+          <span class="legend-i"><span class="dot dot--danger"></span>Danger</span>
         </div>
         <div v-if="showInundation && (timesteps.length > 0 || isMaximaActive)" class="legend-group legend-depth">
           <span class="legend-label">Depth:</span>
@@ -499,7 +637,50 @@ watch(() => props.nodes, syncNodes, { deep: true })
     </div>
 
     <!-- Leaflet Map Canvas -->
-    <div ref="mapEl" class="map-canvas"></div>
+    <div class="map-canvas-wrap">
+      <div ref="mapEl" class="map-canvas"></div>
+      <section v-if="selectedNode" class="selected-node-card" aria-label="Selected node details">
+        <button
+          type="button"
+          class="selected-node-close"
+          aria-label="Close node details"
+          title="Close details"
+          @click="clearSelectedMarker"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+        <div class="selected-node-heading">
+          <h3>{{ selectedNode.name }}</h3>
+          <span class="selected-node-status" :class="`selected-node-status--${selectedNode.status}`">
+            {{ selectedNode.status }}
+          </span>
+        </div>
+        <dl class="selected-node-details">
+          <div>
+            <dt>{{ selectedNode.level_label }}</dt>
+            <dd>{{ selectedNode.current_water_level === null ? '—' : `${selectedNode.current_water_level.toFixed(3)} m` }}</dd>
+          </div>
+          <div v-if="selectedNode.shown_at">
+            <dt>Time</dt>
+            <dd>{{ formatShownAt(selectedNode.shown_at) }}</dd>
+          </div>
+          <div>
+            <dt>Alert / Warning / Danger</dt>
+            <dd>{{ selectedNode.alert_threshold }} / {{ selectedNode.warning_threshold }} / {{ selectedNode.danger_threshold }} m</dd>
+          </div>
+          <div>
+            <dt>Coordinates</dt>
+            <dd>{{ selectedNode.latitude.toFixed(4) }}, {{ selectedNode.longitude.toFixed(4) }}</dd>
+          </div>
+        </dl>
+        <button type="button" class="selected-node-action" @click="emit('select-node', selectedNode.id)">
+          View Hydrograph
+        </button>
+      </section>
+    </div>
 
     <!-- Interactive Time-Lapse Simulation Player -->
     <div v-if="timesteps.length > 0" class="sim-player">
@@ -732,8 +913,117 @@ watch(() => props.nodes, syncNodes, { deep: true })
 /* ── Map Canvas ── */
 .map-canvas {
   width: 100%;
-  height: 420px;
+  height: 100%;
   background: #0d1117;
+}
+
+.map-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 420px;
+}
+
+.selected-node-card {
+  position: absolute;
+  z-index: 1001;
+  top: 50%;
+  left: 50%;
+  width: min(340px, calc(100% - 28px));
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  padding: 16px;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  color: var(--color-text);
+}
+
+.selected-node-close {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-raised);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.selected-node-close svg {
+  width: 14px;
+  height: 14px;
+}
+
+.selected-node-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 30px;
+  margin-bottom: 12px;
+}
+
+.selected-node-heading h3 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.selected-node-status {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.selected-node-status--normal { color: var(--color-ok); background: var(--color-ok-dim); }
+.selected-node-status--alert { color: var(--color-alert); background: rgba(255, 193, 7, 0.12); }
+.selected-node-status--warning { color: var(--color-warn); background: rgba(253, 126, 20, 0.12); }
+.selected-node-status--danger { color: var(--color-danger); background: rgba(220, 53, 69, 0.12); }
+
+.selected-node-details {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.selected-node-details > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.72rem;
+}
+
+.selected-node-details dt {
+  color: var(--color-text-dim);
+}
+
+.selected-node-details dd {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  text-align: right;
+}
+
+.selected-node-action {
+  width: 100%;
+  margin-top: 14px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 :deep(.leaflet-tile-pane) {

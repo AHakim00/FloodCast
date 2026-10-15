@@ -11,10 +11,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from sqlalchemy import text
 
 from app.config import API_V1_PREFIX, CORS_ORIGINS, WATCH_INTERVAL_SECONDS
-from app.database import init_db
+from app.database import engine, init_db
 from app.routers import forecasts, alerts, dashboard, contours, geojson
 from app.services.file_watcher import FileWatcherService, scan_directory
 
@@ -121,10 +123,23 @@ async def root():
 
 @app.get("/health", tags=["Health"])
 async def health():
-    """Detailed health check with watcher status."""
-    return {
-        "status": "healthy",
-        "watcher_running": watcher_service.is_running,
-        "scheduler_running": scheduler.running,
-    }
+    """Report database connectivity and background service status."""
+    database_status = "connected"
+    status_code = 200
+    try:
+        async with engine.connect() as connection:
+            await connection.execute(text("SELECT 1"))
+    except Exception:
+        database_status = "unavailable"
+        status_code = 503
+
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": "healthy" if status_code == 200 else "degraded",
+            "database": database_status,
+            "watcher_running": watcher_service.is_running,
+            "scheduler_running": scheduler.running,
+        },
+    )
 

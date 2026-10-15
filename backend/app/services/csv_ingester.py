@@ -87,15 +87,16 @@ def _parse_datetime_flexible(value) -> datetime | None:
 
 
 async def _has_file_changed(filepath: str, file_hash: str) -> bool:
-    """Check if the file has been processed before with the same hash."""
+    """Check whether the latest successful ingestion matches the current file."""
     async with AsyncSessionLocal() as session:
         result = await session.execute(
-            select(FileIngestLog)
+            select(FileIngestLog.file_hash)
             .where(FileIngestLog.filepath == filepath)
-            .where(FileIngestLog.file_hash == file_hash)
             .where(FileIngestLog.status == "success")
+            .order_by(FileIngestLog.processed_at.desc(), FileIngestLog.id.desc())
+            .limit(1)
         )
-        return result.scalar_one_or_none() is None
+        return result.scalar_one_or_none() != file_hash
 
 
 async def _log_ingestion(
@@ -131,8 +132,9 @@ async def _ensure_node_exists(session: AsyncSession, node_id: str):
             latitude=meta.get("latitude", 1.5535),  # Default Kuching coords
             longitude=meta.get("longitude", 110.3485),
             node_type=meta.get("node_type", "drain"),
-            warning_threshold=meta.get("warning_threshold", 2.0),
-            alert_threshold=meta.get("alert_threshold", 3.0),
+            alert_threshold=meta.get("alert_threshold", 2.0),
+            warning_threshold=meta.get("warning_threshold", 3.0),
+            danger_threshold=meta.get("danger_threshold", 4.0),
         )
         session.add(node)
         await session.flush()

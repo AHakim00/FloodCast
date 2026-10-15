@@ -4,12 +4,31 @@ import { fetchDashboardSummary, usePolling, type DashboardSummaryData } from '@/
 
 const { data: summary, loading } = usePolling<DashboardSummaryData>(fetchDashboardSummary, 30000)
 
+const alertPriority = computed(() => {
+  if (!summary.value) return 'normal'
+  if (summary.value.nodes_in_danger > 0) return 'danger'
+  if (summary.value.nodes_in_warning > 0) return 'warning'
+  if (summary.value.nodes_in_alert > 0) return 'alert'
+  return summary.value.active_alerts > 0 ? 'alert' : 'normal'
+})
+
+const alertPriorityLabel = computed(() => {
+  if (!summary.value) return ''
+  if (summary.value.nodes_in_danger > 0) return `${summary.value.nodes_in_danger} node in danger`
+  if (summary.value.nodes_in_warning > 0) return `${summary.value.nodes_in_warning} node in warning`
+  if (summary.value.nodes_in_alert > 0) return `${summary.value.nodes_in_alert} node in alert`
+  return summary.value.active_alerts > 0 ? 'Active alert targets' : 'No active alerts'
+})
+
+// Computed property to format the latest update timestamp for display
 const formattedUpdate = computed(() => {
+  // If there's no latest update timestamp, return a placeholder
   if (!summary.value?.latest_update) return 'Awaiting data'
   const d = new Date(summary.value.latest_update)
   return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 })
 </script>
+
 
 <template>
   <div class="kpi-row">
@@ -28,12 +47,13 @@ const formattedUpdate = computed(() => {
 
       <!-- Alerts -->
       <div class="kpi card">
-        <div class="kpi-icon" :class="summary.active_alerts > 0 ? 'kpi-icon--red' : 'kpi-icon--green'">
+        <div class="kpi-icon" :class="`kpi-icon--${alertPriority}`">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         </div>
         <div class="kpi-body">
           <span class="kpi-label">Active Alerts</span>
-          <span class="kpi-value" :class="{ 'text-danger': summary.active_alerts > 0 }">{{ summary.active_alerts }}</span>
+          <span class="kpi-value" :class="`text-${alertPriority}`">{{ summary.active_alerts }}</span>
+          <span class="kpi-sub">{{ alertPriorityLabel }}</span>
         </div>
       </div>
 
@@ -101,8 +121,10 @@ const formattedUpdate = computed(() => {
 .kpi-icon svg { width: 18px; height: 18px; }
 
 .kpi-icon--blue  { background: rgba(74, 124, 255, 0.10); color: #4a7cff; }
-.kpi-icon--green { background: var(--color-ok-dim);       color: var(--color-ok); }
-.kpi-icon--red   { background: var(--color-danger-dim);   color: var(--color-danger); }
+.kpi-icon--normal { background: var(--color-ok-dim); color: var(--color-ok); }
+.kpi-icon--danger { background: var(--color-danger-dim); color: var(--color-danger); }
+.kpi-icon--warning { background: rgba(253, 126, 20, 0.12); color: var(--color-warn); }
+.kpi-icon--alert { background: rgba(255, 193, 7, 0.12); color: var(--color-alert); }
 .kpi-icon--cyan  { background: rgba(56, 189, 210, 0.10);  color: #38bdd2; }
 .kpi-icon--muted { background: var(--color-bg-overlay);   color: var(--color-text-dim); }
 
@@ -136,6 +158,8 @@ const formattedUpdate = computed(() => {
 }
 
 .text-danger { color: var(--color-danger); }
+.text-warning { color: var(--color-warn); }
+.text-alert { color: var(--color-alert); }
 
 .unit {
   font-size: 0.75rem;

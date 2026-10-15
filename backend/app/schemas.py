@@ -14,10 +14,11 @@ class NodeResponse(BaseModel):
     latitude: float
     longitude: float
     node_type: str
-    warning_threshold: float
     alert_threshold: float
+    warning_threshold: float
+    danger_threshold: float
     current_water_level: float | None = None
-    status: str = "normal"  # "normal", "warning", "alert"
+    status: str = "normal"  # "normal", "alert", "warning", "danger"
 
     model_config = {"from_attributes": True}
 
@@ -37,8 +38,9 @@ class ForecastResponse(BaseModel):
     node_name: str
     latitude: float
     longitude: float
-    warning_threshold: float
     alert_threshold: float
+    warning_threshold: float
+    danger_threshold: float
     readings: list[WaterLevelReadingResponse] = Field(default_factory=list)
     total_readings: int = 0
 
@@ -50,8 +52,9 @@ class LatestForecastResponse(BaseModel):
     longitude: float
     distance_km: float | None = None
     latest_reading: WaterLevelReadingResponse | None = None
-    warning_threshold: float
     alert_threshold: float
+    warning_threshold: float
+    danger_threshold: float
     status: str = "normal"
 
 
@@ -86,5 +89,7 @@ class DashboardSummary(BaseModel):
     latest_update: datetime | None = None
     max_water_level: float | None = None
     max_water_level_node: str | None = None
-    nodes_in_warning: int = 0
+    max_water_level_time: datetime | None = None  # when the peak occurs in the forecast
     nodes_in_alert: int = 0
+    nodes_in_warning: int = 0
+    nodes_in_danger: int = 0

@@ -31,6 +31,52 @@ TIMEZONE = "Asia/Kuching"
 TIMEZONE_ABBR = "MYT"
 GEOJSON_PATH = Path(GEOJSON_DIR)
 
+# Accepted file names (the date format is used to parse the date part):
+#   DTM_YYYYMMDDTHHMM.geojson        e.g. DTM_20260911T0930.geojson
+#   FloodContours_YYMMDD_HHMM.geojson e.g. FloodContours_260826_1000.geojson
+_PATTERNS = [
+    (re.compile(r"DTM_(\d{8})T(\d{4})\.geojson$", re.IGNORECASE), "%Y%m%d"),
+    (re.compile(r"FloodContours_(\d{6})_(\d{4})\.geojson$", re.IGNORECASE), "%y%m%d"),
+    (re.compile(r"FloodContours_(\d{8})_(\d{4})\.geojson$", re.IGNORECASE), "%Y%m%d"),
+]
+
+
+def _list_geojson_files() -> list:
+    """Return all hourly GeoJSON files sorted by timestamp, excluding Maxima."""
+    files = [
+        f for f in GEOJSON_PATH.glob("*.geojson")
+        if "Maxima" not in f.name and _parse_timestep(f.name) is not None
+    ]
+    return sorted(
+        files,
+        key=lambda f: (_parse_timestep(f.name) or {}).get("iso", ""),
+    )
+
+
+def _parse_timestep(filename: str):
+    """Parse filename into metadata dict (None if the name is not recognised)."""
+    for pattern, date_fmt in _PATTERNS:
+        m = pattern.match(filename)
+        if m:
+            break
+    else:
+        return None
+    date_str, time_str = m.group(1), m.group(2)
+    try:
+        dt = datetime.strptime(date_str + time_str, date_fmt + "%H%M").replace(
+            tzinfo=ZoneInfo(TIMEZONE)
+        )
+    except ValueError:
+        return None
+    return {
+        "timestep": time_str,
+        "localDate": dt.strftime("%d %b %Y"),
+        "localTime": dt.strftime("%I:%M %p"),
+        "iso": dt.isoformat(),
+        "filename": filename,
+    }
+
+''' OLD CODE
 # Pattern: DTM_YYYYMMDDTHHMM.geojson
 _TIMESTEP_RE = re.compile(r"DTM_(\d{8})T(\d{4})\.geojson", re.IGNORECASE)
 
@@ -63,10 +109,11 @@ def _parse_timestep(filename: str):
         "iso": dt.isoformat(),
         "filename": filename,
     }
+'''
 
 
 def _build_response(geojson_path: Path) -> dict:
-    """Load a GeoJSON file and wrap it in the standard API envelope."""
+    # Load a GeoJSON file and wrap it in the standard API envelope."""
     if not geojson_path.exists():
         raise HTTPException(status_code=404, detail=f"GeoJSON file not found: {geojson_path.name}")
 
@@ -99,7 +146,7 @@ def _build_response(geojson_path: Path) -> dict:
 
 @router.get("/view", response_class=HTMLResponse, summary="Browser-friendly API viewer")
 async def view_api():
-    """Render an interactive HTML page for browsing the flood depth API."""
+    # Render an interactive HTML page for browsing the flood depth API."""
     files = _list_geojson_files()
     timestep_options = ""
     for f in files:
@@ -271,7 +318,7 @@ function copyResp(){if(!_last)return;navigator.clipboard.writeText(JSON.stringif
 
 @router.get("", summary="List all available flood depth timesteps")
 async def list_timesteps():
-    """Return metadata for all available hourly GeoJSON flood depth files."""
+    # Return metadata for all available hourly GeoJSON flood depth files."""
     files = _list_geojson_files()
     timesteps = []
     for f in files:
@@ -300,7 +347,7 @@ async def list_timesteps():
 
 @router.get("/latest", summary="Get the latest flood depth GeoJSON")
 async def get_latest():
-    """Return the most recently generated flood depth GeoJSON file."""
+    # Return the most recently generated flood depth GeoJSON file.
     files = _list_geojson_files()
     if not files:
         raise HTTPException(status_code=404, detail="No flood depth GeoJSON files available.")
@@ -313,9 +360,18 @@ async def get_by_timestep(timestep: str):
     Return flood depth GeoJSON for a given HHMM timestep string (e.g. 0930, 1030).
     """
     files = _list_geojson_files()
-    matches = [f for f in files if f.name.endswith(f"T{timestep}.geojson")]
+    matches = [
+        f
+        for f in files
+        if (meta := _parse_timestep(f.name)) is not None and meta["timestep"] == timestep
+    ]
+    # matches = [f for f in files if f.name.endswith(f"T{timestep}.geojson")]
     if not matches:
-        available = [m["timestep"] for f in files if (m := _parse_timestep(f.name))]
+        available = [
+            meta["timestep"]
+            for f in files
+            if (meta := _parse_timestep(f.name)) is not None
+        ]
         raise HTTPException(
             status_code=404,
             detail=f"No GeoJSON found for timestep '{timestep}'. Available: {available}",

@@ -21,12 +21,14 @@
   --color-accent: #4a7cff;
   --color-accent-muted: #3a62cc;
 
-  --color-ok: #34c471;
-  --color-ok-dim: rgba(52, 196, 113, 0.12);
-  --color-warn: #e6a020;
-  --color-warn-dim: rgba(230, 160, 32, 0.12);
-  --color-danger: #e04848;
-  --color-danger-dim: rgba(224, 72, 72, 0.12);
+  --color-ok: #28A745;
+  --color-ok-dim: rgba(40,167,69,0.12);
+  --color-alert: #f2ff39;
+  --color-alert-dim: rgba(255,193,7,0.12);
+  --color-warn: #FD7E14;
+  --color-warn-dim: rgba(253,126,20,0.12);
+  --color-danger: #DC3545;
+  --color-danger-dim: rgba(220,53,69,0.12);
 
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
@@ -80,6 +82,7 @@ body {
   flex-shrink: 0;
 }
 .dot--ok   { background: var(--color-ok); }
+.dot--alert   { background: var(--color-alert); }
 .dot--warn { background: var(--color-warn); }
 .dot--danger {
   background: var(--color-danger);
@@ -105,6 +108,7 @@ body {
   text-transform: uppercase;
 }
 .tag--ok     { background: var(--color-ok-dim);     color: var(--color-ok); }
+.tag--alert  { background: var(--color-alert-dim);  color: var(--color-alert); }
 .tag--warn   { background: var(--color-warn-dim);   color: var(--color-warn); }
 .tag--danger { background: var(--color-danger-dim); color: var(--color-danger); }
 .tag--muted  { background: var(--color-bg-overlay); color: var(--color-text-secondary); }

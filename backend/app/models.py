@@ -20,8 +20,9 @@ class Node(Base):
     latitude: Mapped[float] = mapped_column(Float, nullable=False)
     longitude: Mapped[float] = mapped_column(Float, nullable=False)
     node_type: Mapped[str] = mapped_column(String(64), default="drain")
-    warning_threshold: Mapped[float] = mapped_column(Float, default=2.0)
-    alert_threshold: Mapped[float] = mapped_column(Float, default=3.0)
+    alert_threshold: Mapped[float] = mapped_column(Float, default=2.0)
+    warning_threshold: Mapped[float] = mapped_column(Float, default=3.0)
+    danger_threshold: Mapped[float] = mapped_column(Float, default=4.0)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 

@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/v1", tags=["Alerts"])
 
 
 def _is_alert_active(alert: AlertDefinition) -> bool:
-    """Determine if an alert is currently active based on onset/end times."""
+    # Determine if an alert is currently active based on onset/end times.
     now = datetime.now()
 
     # If no onset time, consider it active
@@ -73,11 +73,19 @@ async def get_active_alerts(
             is_active=True,
         ))
 
+    # Sort by priority: Danger/Critical first, then Warning, then Alert, then others
+        priority_order = {"danger": 0, "critical": 0, "warning": 1, "alert": 2, "info": 3}
+        active_alerts.sort(
+            key=lambda a: priority_order.get((a.priority or "").lower(), 99)
+        )
+    
+    '''
     # Sort by priority: Critical first, then Warning, then others
     priority_order = {"critical": 0, "warning": 1, "info": 2}
     active_alerts.sort(
         key=lambda a: priority_order.get((a.priority or "").lower(), 99)
     )
+    '''
 
     return AlertListResponse(
         alerts=active_alerts,

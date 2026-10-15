@@ -2,6 +2,7 @@
 Async SQLite database engine, session management, and initialization.
 """
 
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
@@ -13,11 +14,11 @@ class Base(DeclarativeBase):
     pass
 
 
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=False,
-    connect_args={"check_same_thread": False},  # Required for SQLite
-)
+engine_options: dict[str, object] = {"echo": False, "pool_pre_ping": True}
+if make_url(DATABASE_URL).get_backend_name() == "sqlite":
+    engine_options["connect_args"] = {"check_same_thread": False}
+
+engine = create_async_engine(DATABASE_URL, **engine_options)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
@@ -59,8 +60,9 @@ async def init_db():
                     latitude=meta["latitude"],
                     longitude=meta["longitude"],
                     node_type=meta["node_type"],
-                    warning_threshold=meta["warning_threshold"],
                     alert_threshold=meta["alert_threshold"],
+                    warning_threshold=meta["warning_threshold"],
+                    danger_threshold=meta["danger_threshold"],
                 )
                 session.add(node)
             else:
@@ -68,7 +70,8 @@ async def init_db():
                 existing.latitude = meta["latitude"]
                 existing.longitude = meta["longitude"]
                 existing.node_type = meta["node_type"]
-                existing.warning_threshold = meta["warning_threshold"]
                 existing.alert_threshold = meta["alert_threshold"]
+                existing.warning_threshold = meta["warning_threshold"]
+                existing.danger_threshold = meta["danger_threshold"]
 
         await session.commit()

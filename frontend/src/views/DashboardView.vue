@@ -140,8 +140,15 @@ function handleSelectNode(nodeId: string) {
   }
 }
 
-.map-column, .alert-column {
+.map-column {
   min-width: 0;
+}
+
+.alert-column {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+  min-height: 0;
 }
 
 /* ── Hydrograph Section ── */

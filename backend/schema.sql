@@ -1,12 +1,12 @@
 -- ============================================================================
 -- Flood Live Data — Reference SQL Schema
 -- ============================================================================
--- This file documents the database schema for reference and PostgreSQL migration.
--- The application uses SQLAlchemy ORM to manage the schema at runtime (SQLite).
+-- This is a SQLite reference schema, not a SQL Server migration script.
+-- SQLAlchemy ORM creates tables for the configured database at application startup.
 --
--- MIGRATION TO POSTGRESQL / TIMESCALEDB:
--- 1. Change DATABASE_URL to: postgresql+asyncpg://user:pass@host/dbname
--- 2. Replace aiosqlite with asyncpg in requirements.txt
+-- OPTIONAL POSTGRESQL / TIMESCALEDB NOTES:
+-- 1. Set DATABASE_URL to: postgresql+asyncpg://user:pass@host/dbname
+-- 2. Install asyncpg.
 -- 3. For TimescaleDB, convert water_level_readings to a hypertable:
 --    SELECT create_hypertable('water_level_readings', 'timestamp');
 -- 4. Add PostGIS extension for spatial queries:
@@ -21,8 +21,9 @@ CREATE TABLE IF NOT EXISTS nodes (
     latitude        DOUBLE PRECISION NOT NULL,
     longitude       DOUBLE PRECISION NOT NULL,
     node_type       VARCHAR(64)     DEFAULT 'drain',
-    warning_threshold DOUBLE PRECISION DEFAULT 2.0,
-    alert_threshold   DOUBLE PRECISION DEFAULT 3.0,
+    alert_threshold   DOUBLE PRECISION DEFAULT 2.0,
+    warning_threshold DOUBLE PRECISION DEFAULT 3.0,
+    danger_threshold  DOUBLE PRECISION DEFAULT 4.0,
     created_at      TIMESTAMP       DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -45,7 +46,7 @@ CREATE INDEX IF NOT EXISTS idx_readings_node_time
 CREATE INDEX IF NOT EXISTS idx_readings_source
     ON water_level_readings (source_file);
 
--- Alert/warning definitions from ICM Live data exports
+-- Alert/warning/Danger definitions from ICM Live data exports
 CREATE TABLE IF NOT EXISTS alert_definitions (
     id                      INTEGER         PRIMARY KEY AUTOINCREMENT,
     alert_definition_id     VARCHAR(128)    NOT NULL UNIQUE,

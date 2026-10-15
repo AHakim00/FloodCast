@@ -4,6 +4,7 @@ for the Kuching, Sarawak drain network (Drain 46 & Drain 53).
 
 Creates hourly shapefile batches:
   FloodContours_260826_1000.* through FloodContours_260826_1800.*
+plus a peak-envelope batch: FloodContours_260826_Maxima.*
 in data/exports/ with .shp, .shx, .dbf, and .prj in Sarawak RSO (EPSG:29873).
 """
 
@@ -57,6 +58,7 @@ HOURLY_FRAMES: list[HourlyFrame] = [
     {"ts": "1700", "scale": 0.90, "depth_min": 0.35, "depth_max": 1.15, "elev_base": 2.6},
     {"ts": "1800", "scale": 0.55, "depth_min": 0.20, "depth_max": 0.65, "elev_base": 2.2},
 ]
+PEAK_FRAME = max(HOURLY_FRAMES, key=lambda frame: frame["scale"])
 
 
 def make_curved_corridor(base_lon: float, base_lat: float, scale_factor: float, depth_tier: int):
@@ -80,7 +82,7 @@ def make_curved_corridor(base_lon: float, base_lat: float, scale_factor: float, 
     points.append(points[0])  # close ring
     poly = Polygon(points)
     # Tilt slightly to match the Sungai Sarawak / Padungan flow angle (-25 deg)
-    return rotate(poly, -25, origin=(base_lon, base_lat))
+    return rotate(poly, -25, origin=(base_lon, base_lat))  # type: ignore[arg-type]
 
 
 def make_tributary_ponding(base_lon: float, base_lat: float, scale_factor: float, depth_tier: int):
@@ -104,6 +106,7 @@ def make_tributary_ponding(base_lon: float, base_lat: float, scale_factor: float
 def generate_hourly_shapefiles():
     """Build and write the shapefile batches to data/exports/."""
     print(f"Generating realistic InfoWorks ICM Shapefiles in {EXPORTS_DIR}...")
+    peak_features: list[dict[str, object]] = []
 
     for frame in HOURLY_FRAMES:
         ts = frame["ts"]
@@ -112,7 +115,7 @@ def generate_hourly_shapefiles():
         base_depth_max = frame["depth_max"]
         elev_base = frame["elev_base"]
 
-        features = []
+        features: list[dict[str, object]] = []
 
         # Generate 3 depth zones per frame:
         # Zone 0: Outer perimeter (shallowest: e.g. 0.15 - 0.50m)
@@ -154,8 +157,27 @@ def generate_hourly_shapefiles():
                 "Timestep": ts,
             })
 
+        if ts == PEAK_FRAME["ts"]:
+            peak_features = [
+                {**feature, "Timestep": "Maxima"}
+                for feature in features
+            ]
+
         # Create GeoDataFrame in WGS84
-        gdf_wgs84 = gpd.GeoDataFrame(features, crs="EPSG:4326")
+        gdf_wgs84 = gpd.GeoDataFrame.from_features(
+            [
+                {
+                    "geometry": feature["geometry"],
+                    "properties": {
+                        key: value
+                        for key, value in feature.items()
+                        if key != "geometry"
+                    },
+                }
+                for feature in features
+            ],
+            crs="EPSG:4326",
+        )
 
         # Project to local Sarawak RSO (EPSG:29873) to faithfully mirror actual ICM exports
         gdf_rso = gdf_wgs84.to_crs("EPSG:29873")
@@ -166,6 +188,25 @@ def generate_hourly_shapefiles():
         # Save shapefile with .shp, .shx, .dbf, .prj
         gdf_rso.to_file(shp_path, driver="ESRI Shapefile")
         print(f" -> Created: {shp_path.name} (CRS: EPSG:29873 Sarawak RSO, {len(features)} polygons)")
+
+    if peak_features:
+        maxima_gdf = gpd.GeoDataFrame.from_features(
+            [
+                {
+                    "geometry": feature["geometry"],
+                    "properties": {
+                        key: value
+                        for key, value in feature.items()
+                        if key != "geometry"
+                    },
+                }
+                for feature in peak_features
+            ],
+            crs="EPSG:4326",
+        ).to_crs("EPSG:29873")
+        maxima_path = EXPORTS_DIR / "FloodContours_260826_Maxima.shp"
+        maxima_gdf.to_file(maxima_path, driver="ESRI Shapefile")
+        print(f" -> Created: {maxima_path.name} (peak frame {PEAK_FRAME['ts']}, {len(peak_features)} polygons)")
 
     print("All sample Shapefiles generated successfully!")
 

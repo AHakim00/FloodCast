@@ -4,9 +4,11 @@ Application configuration and constants.
 
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 # ─── Paths ───────────────────────────────────────────────────────────────────
 BASE_DIR = Path(__file__).resolve().parent.parent.parent  # project root
+load_dotenv(BASE_DIR / ".env")
 DATA_DIR = os.getenv("DATA_DIR", str(BASE_DIR / "data" / "exports"))
 GEOJSON_DIR = os.getenv("GEOJSON_DIR", str(BASE_DIR / "data" / "geojson"))
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite+aiosqlite:///{BASE_DIR / 'backend' / 'flood_data.db'}")
@@ -26,10 +28,11 @@ SHAPEFILE_PATTERNS = ["FloodContours", "DTM_"] # Filename prefixes for ICM 2D co
 DEFAULT_LOCAL_CRS = "EPSG:29874"  # Timbalai 1948 / RSO Sarawak LSD (m)
 TARGET_CRS = "EPSG:4326"         # WGS84 for GeoJSON / Web Mercator maps
 
-# ─── Warning / Alert Thresholds (meters) ─────────────────────────────────────
+# ─── Alert / Warning / Danger Thresholds (meters) ─────────────────────────────────────
 # These can be overridden per-node in the future
-DEFAULT_WARNING_THRESHOLD = 2.0
-DEFAULT_ALERT_THRESHOLD = 3.0
+DEFAULT_ALERT_THRESHOLD = 2.0
+DEFAULT_WARNING_THRESHOLD = 3.0
+DEFAULT_DANGER_THRESHOLD = 4.0
 
 # ─── Node Metadata (Kuching, Sarawak drain network) ─────────────────────────
 # GIS coordinates for known monitoring nodes
@@ -39,16 +42,18 @@ NODE_METADATA = {
         "latitude": 1.5535,
         "longitude": 110.3485,
         "node_type": "drain",
-        "warning_threshold": DEFAULT_WARNING_THRESHOLD,
         "alert_threshold": DEFAULT_ALERT_THRESHOLD,
+        "warning_threshold": DEFAULT_WARNING_THRESHOLD,
+        "danger_threshold": DEFAULT_DANGER_THRESHOLD,
     },
     "Drain_53": {
         "name": "Drain 53 - Sungai Sarawak",
         "latitude": 1.5590,
         "longitude": 110.3440,
         "node_type": "drain",
-        "warning_threshold": DEFAULT_WARNING_THRESHOLD,
         "alert_threshold": DEFAULT_ALERT_THRESHOLD,
+        "warning_threshold": DEFAULT_WARNING_THRESHOLD,
+        "danger_threshold": DEFAULT_DANGER_THRESHOLD,
     },
 }
 

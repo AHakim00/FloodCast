@@ -84,8 +84,9 @@ const metrics = computed(() => {
     latest,
     max,
     min,
-    warning: f.warning_threshold,
     alert: f.alert_threshold,
+    warning: f.warning_threshold,
+    danger: f.danger_threshold,
     count: f.readings.length
   }
 })
@@ -93,15 +94,18 @@ const metrics = computed(() => {
 const chartOption = computed(() => {
   if (forecasts.value.size === 0) return {}
 
+  // const colorPalette = ['#28A745', '#FFC107', '#FD7E14', '#DC3545', '#4a7cff']
   const colorPalette = ['#4a7cff', '#38bdd2', '#a855f7', '#f59e0b', '#10b981']
   const series: any[] = []
-  let warningVal = 2.0
-  let alertVal = 3.0
+  let alertVal = 2.0
+  let warningVal = 3.0
+  let dangerVal = 4.0
   let idx = 0
 
   forecasts.value.forEach((forecast, nodeId) => {
-    warningVal = forecast.warning_threshold
     alertVal = forecast.alert_threshold
+    warningVal = forecast.warning_threshold
+    dangerVal = forecast.danger_threshold
     const c = colorPalette[idx % colorPalette.length]
 
     series.push({
@@ -129,30 +133,43 @@ const chartOption = computed(() => {
         lineStyle: { width: 1.5 },
         data: [
           {
+            yAxis: alertVal,
+            name: 'Alert Level',
+            label: {
+              formatter: `Alert (${alertVal.toFixed(1)}m)`,
+              position: 'insideEndTop',
+              color: '#f2ff39',
+              fontSize: 11,
+              fontFamily: 'JetBrains Mono',
+              fontWeight: 400,
+            },
+            lineStyle: { color: '#f2ff39', type: 'dashed' },
+          },
+          {
             yAxis: warningVal,
             name: 'Warning Level',
             label: {
               formatter: `Warning (${warningVal.toFixed(1)}m)`,
               position: 'insideEndTop',
-              color: '#e6a020',
+              color: '#FD7E14',
               fontSize: 11,
               fontFamily: 'JetBrains Mono',
               fontWeight: 500,
             },
-            lineStyle: { color: '#e6a020', type: 'dashed' },
+            lineStyle: { color: '#FD7E14', type: 'dashed' },
           },
           {
-            yAxis: alertVal,
-            name: 'Alert Level',
+            yAxis: dangerVal,
+            name: 'Danger Level',
             label: {
-              formatter: `Critical Alert (${alertVal.toFixed(1)}m)`,
+              formatter: `Danger (${dangerVal.toFixed(1)}m)`,
               position: 'insideEndTop',
-              color: '#e04848',
+              color: '#DC3545',
               fontSize: 11,
               fontFamily: 'JetBrains Mono',
               fontWeight: 600,
             },
-            lineStyle: { color: '#e04848', type: 'dashed' },
+            lineStyle: { color: '#DC3545', type: 'dashed' },
           },
         ],
       } : undefined,
@@ -304,13 +321,18 @@ watch(() => props.allNodeIds, loadData, { deep: true })
         </div>
         <div class="metric-divider"></div>
         <div class="metric-item">
+          <span class="m-label">Alert Thresh</span>
+          <span class="m-val text-alert">{{ metrics.alert.toFixed(1) }}m</span>
+        </div>
+        <div class="metric-divider"></div>
+        <div class="metric-item">
           <span class="m-label">Warning Thresh</span>
           <span class="m-val text-warn">{{ metrics.warning.toFixed(1) }}m</span>
         </div>
         <div class="metric-divider"></div>
         <div class="metric-item">
-          <span class="m-label">Alert Thresh</span>
-          <span class="m-val text-danger">{{ metrics.alert.toFixed(1) }}m</span>
+          <span class="m-label">Danger Thresh</span>
+          <span class="m-val text-danger">{{ metrics.danger.toFixed(1) }}m</span>
         </div>
       </div>
     </div>
@@ -420,6 +442,8 @@ watch(() => props.allNodeIds, loadData, { deep: true })
   background: var(--color-border);
 }
 
+
+.text-alert { color: var(--color-alert); }
 .text-warn { color: var(--color-warn); }
 .text-danger { color: var(--color-danger); }
 
