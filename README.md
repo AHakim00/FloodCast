@@ -1,5 +1,7 @@
 # 🌊 FloodCast — Live Flood Forecast Dashboard
 
+Forecasting flood patterns from rainfall and InfoWorks ICM simulation data.
+
 An automated live flood forecasting web application and API platform that monitors hourly CSV simulation outputs from InfoWorks ICM, ingests the data into a database, exposes JSON API endpoints for external plugin extraction, and displays live forecasts on an interactive dashboard.
 
 **Location:** Kuching, Sarawak, Malaysia
