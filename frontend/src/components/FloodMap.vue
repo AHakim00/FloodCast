@@ -20,7 +20,7 @@ import {
   type ShownNode,
 } from '@/composables/frameReadings'
 
-async function fetchContourMetadata(): Promise<{ frames: Array<{ date?: string; timestep?: string }> }> {
+/*async function fetchContourMetadata(): Promise<{ frames: Array<{ date?: string; timestep?: string }> }> {
   const timesteps = await fetchContourTimesteps()
   return {
     frames: timesteps.map((timestep) => ({
@@ -28,7 +28,7 @@ async function fetchContourMetadata(): Promise<{ frames: Array<{ date?: string; 
       date: normaliseFrameDate(timestep) ?? undefined,
     })),
   }
-}
+}*/
 
 const props = defineProps<{ nodes: NodeData[] }>()
 const emit = defineEmits<{ (e: 'select-node', nodeId: string): void }>()
