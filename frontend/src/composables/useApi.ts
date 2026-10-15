@@ -125,8 +125,8 @@ const FALLBACK_NODES: NodeData[] = [
     status: 'alert',
   },
   {
-    id: 'Drain_53',
-    name: 'Drain 53 - Sungai Sarawak',
+    id: 'Drain_102',
+    name: 'Drain 102 - Sungai Sarawak',
     latitude: 1.5601,
     longitude: 110.3422,
     node_type: '1D_Channel',
@@ -135,6 +135,17 @@ const FALLBACK_NODES: NodeData[] = [
     danger_threshold: 4.2,
     current_water_level: 1.85,
     status: 'normal',
+  },
+  {
+    id: 'Drain_53',
+    name: 'Drain 53 - Batu Lintang',
+    latitude: 1.5590,
+    longitude: 110.3440,
+    node_type: '1D_Channel',
+    warning_threshold: 2.0,
+    alert_threshold: 3.0,
+    current_water_level: 1.20,
+    status: 'normal'
   },
 ]
 
