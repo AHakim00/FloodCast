@@ -403,20 +403,27 @@ async function getDemoData(
 ): Promise<unknown> {
   // Return contour data without loading the CSV.
   if (path.endsWith('/contours/timesteps')) {
-    return ['1800']
+    return [
+      '1000',
+      '1100',
+      '1200',
+      '1300',
+      '1400',
+      '1500',
+      '1600',
+      '1700',
+      '1800',
+    ]
   }
 
-  if (path.endsWith('/contours/metadata')) {
-    return {
-      frames: [
-        {
-          timestep: '1800',
-          label: '18:00',
-          date: '2026-08-26',
-          filename: 'FloodContours_260826_1800.geojson',
-        },
-      ],
-    } satisfies { frames: ContourFrameMeta[] }
+  return {
+      frames: timestamps.map((timestep) => ({
+        timestep,
+        label: `${timestep.slice(0, 2)}:${timestep.slice(2)}`,
+        date: '2026-08-26',
+        filename: `FloodContours_260826_${timestep}.geojson`,
+      })),
+    }
   }
 
   if (path.endsWith('/contours/has-maxima')) {
@@ -675,29 +682,17 @@ export async function fetchContourTimesteps(): Promise<string[]> {
 export async function fetchContourGeoJSON(
   timestamp: string,
 ): Promise<ContourGeoJSON> {
+export async function fetchContourGeoJSON(
+  timestamp: string,
+): Promise<ContourGeoJSON> {
   if (DEMO_MODE) {
     const filename =
-      timestamp === '1000'
-        ? 'FloodContours_260826_1000.geojson'
-        : timestamp === '1100'
-          ? 'FloodContours_260826_1100.geojson'
-          : timestamp === '1200'
-            ? 'FloodContours_260826_1200.geojson'
-            : timestamp === '1300'
-              ? 'FloodContours_260826_1300.geojson'
-              : timestamp === '1400'
-                ? 'FloodContours_260826_1400.geojson'
-                : timestamp === '1500'
-                  ? 'FloodContours_260826_1500.geojson'
-                  : timestamp === '1600'
-                    ? 'FloodContours_260826_1600.geojson'
-                    : timestamp === '1700'
-                      ? 'FloodContours_260826_1700.geojson'
-                      : timestamp === '1800'
-                        ? 'FloodContours_260826_1800.geojson'
-                        : timestamp === 'maxima'
-                          ? 'FloodContours_260826_Maxima.geojson'
-                          : null
+      timestamp.toLowerCase() === 'maxima'
+        ? 'FloodContours_260826_Maxima.geojson'
+        : `FloodContours_260826_${timestamp}.geojson`
+
+    return fetchDemoContour(filename)
+  }
 
     if (!filename) {
       throw new Error(`Unknown demo contour timestamp: ${timestamp}`)
