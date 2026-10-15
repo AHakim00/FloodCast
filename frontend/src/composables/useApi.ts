@@ -480,9 +480,14 @@ async function getDemoData(
 
     for (const nodeId of DEMO_SENSOR_IDS) {
       for (const reading of readings) {
-        const level = reading[nodeId]
-
-        if (level > maxLevel) {
+        const level =
+          nodeId === 'Drain_46'
+            ? reading.Drain_46
+            : nodeId === 'Drain_53'
+              ? reading.Drain_53
+              : undefined
+    
+        if (level !== undefined && level > maxLevel) {
           maxLevel = level
           maxNode = nodeId
           maxTime = reading.Time
