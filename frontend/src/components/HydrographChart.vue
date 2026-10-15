@@ -247,7 +247,7 @@ const chartOption = computed(() => {
     },
     yAxis: {
       type: 'value',
-      name: 'Stage Height (m)',
+      name: 'Stage Height (m AD)',
       nameTextStyle: { color: '#5c6178', fontSize: 11, padding: [0, 0, 6, 0] },
       axisLine: { show: false },
       axisTick: { show: false },
@@ -255,7 +255,7 @@ const chartOption = computed(() => {
         color: '#5c6178',
         fontSize: 11,
         fontFamily: 'JetBrains Mono',
-        formatter: '{value} m',
+        formatter: '{value} m AD',
       },
       splitLine: {
         show: true,
@@ -306,7 +306,7 @@ watch(() => props.allNodeIds, loadData, { deep: true })
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="chart-header-icon">
           <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
         </svg>
-        <span class="chart-heading">Hydrograph Telemetry & Stage Forecast</span>
+        <span class="chart-heading">Forcasted Water Levels</span>
       </div>
 
       <div v-if="metrics" class="quick-metrics">
