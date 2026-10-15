@@ -700,9 +700,6 @@ export async function fetchContourTimesteps(): Promise<string[]> {
 export async function fetchContourGeoJSON(
   timestamp: string,
 ): Promise<ContourGeoJSON> {
-export async function fetchContourGeoJSON(
-  timestamp: string,
-): Promise<ContourGeoJSON> {
   if (DEMO_MODE) {
     const filename =
       timestamp.toLowerCase() === 'maxima'
