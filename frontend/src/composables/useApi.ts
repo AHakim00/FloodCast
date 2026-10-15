@@ -663,8 +663,39 @@ export async function fetchContourTimesteps(): Promise<string[]> {
 export async function fetchContourGeoJSON(
   timestamp: string,
 ): Promise<ContourGeoJSON> {
+  if (DEMO_MODE) {
+    const filename =
+      timestamp === '1000'
+        ? 'FloodContours_260826_1000.geojson'
+        timestamp === '1100'
+          ? 'FloodContours_260826_1100.geojson'
+          timestamp === '1200'
+            ? 'FloodContours_260826_1200.geojson'
+            timestamp === '1300'
+              ? 'FloodContours_260826_1300.geojson'
+              timestamp === '1400'
+                ? 'FloodContours_260826_1400.geojson'
+                timestamp === '1500'
+                  ? 'FloodContours_260826_1500.geojson'
+                  timestamp === '1600'
+                    ? 'FloodContours_260826_1600.geojson'
+                    timestamp === '1700'
+                      ? 'FloodContours_260826_1700.geojson'
+                      timestamp === '1800'
+                        ? 'FloodContours_260826_1800.geojson'
+                        : timestamp === 'maxima'
+                          ? 'FloodContours_260826_Maxima.geojson'
+                          : null
+
+    if (!filename) {
+      throw new Error(`Unknown demo contour timestamp: ${timestamp}`)
+    }
+
+    return await fetchDemoContour(filename) as ContourGeoJSON
+  }
+
   return apiFetch<ContourGeoJSON>(
-    `${API_BASE}/contours/${timestamp}`,
+    `${API_BASE}/contours/${encodeURIComponent(timestamp)}`,
   )
 }
 
