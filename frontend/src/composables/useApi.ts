@@ -415,7 +415,6 @@ async function getDemoData(
       '1800',
     ]
   }
-}
 
   if (path.endsWith('/contours/metadata')) {
     const timestamps = [
